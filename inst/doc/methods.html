@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>B-spline Kolmogorov-Arnold Networks in R: method, validation and an application to PLS-SEM latent scores</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">B-spline Kolmogorov-Arnold Networks in R:
+method, validation and an application to PLS-SEM latent scores</h1>
+
+
+
+<p>This vignette documents what <code>splineKANr</code> computes, how
+the implementation was validated, and how it can be used after a partial
+least squares structural equation model (PLS-SEM). The recorded results
+quoted in Sections 3-5 were produced by the scripts listed in
+<code>system.file(&quot;REPRODUCE.md&quot;, package = &quot;splineKANr&quot;)</code>; the
+code shown here runs in seconds with the base R backend.</p>
+<div id="model" class="section level2">
+<h2>1. Model</h2>
+<p>A KAN <span class="citation">(Liu et al. 2024)</span> with widths
+<span class="math inline">\((n_0, \dots, n_L)\)</span> composes layers
+<span class="math inline">\(x^{(l+1)}_j = \sum_{i=1}^{n_l}
+\phi^{(l)}_{ij}\big(x^{(l)}_i\big) + b^{(l)}_j\)</span>. Each edge
+function is</p>
+<p><span class="math display">\[
+\phi_{ij}(x) = m_{ij}\Big( w^{b}_{ij}\, \mathrm{silu}(x)
+  + w^{s}_{ij} \sum_{m=1}^{G+k} c_{ijm} B_{m,k}(x) \Big),
+\]</span></p>
+<p>with a mask <span class="math inline">\(m_{ij} \in \{0, 1\}\)</span>,
+base and spline weights <span class="math inline">\(w^b, w^s\)</span>
+and B-splines <span class="math inline">\(B_{m,k}\)</span> of degree
+<span class="math inline">\(k\)</span> on an extended knot vector <span class="math inline">\(t_1 &lt; \dots &lt; t_{G+2k+1}\)</span> (<span class="math inline">\(G\)</span> intervals on the domain <span class="math inline">\([t_{k+1}, t_{G+k+1}]\)</span> plus <span class="math inline">\(k\)</span> knots on each side, as in pykan). The
+basis follows the Cox-de Boor recursion on half-open intervals <span class="math inline">\([t_i, t_{i+1})\)</span>,</p>
+<p><span class="math display">\[
+B_{i,0}(x) = 1\{t_i \le x &lt; t_{i+1}\},\qquad
+B_{i,p}(x) = \frac{x - t_i}{t_{i+p} - t_i} B_{i,p-1}(x)
++ \frac{t_{i+p+1} - x}{t_{i+p+1} - t_{i+1}} B_{i+1,p-1}(x),
+\]</span></p>
+<p>and its derivative is <span class="math inline">\(B&#39;_{i,p} =
+\frac{p}{t_{i+p}-t_i}B_{i,p-1} -
+\frac{p}{t_{i+p+1}-t_{i+1}}B_{i+1,p-1}\)</span>. Outside the domain the
+spline part is, depending on <code>extrapolate</code>, zero
+(<code>&quot;none&quot;</code>, pykan’s behavior), held constant
+(<code>&quot;clamp&quot;</code>) or continued by its first-order Taylor expansion
+at the boundary (<code>&quot;linear&quot;</code>, default), so that the network
+stays continuous and has non-zero gradients for inputs beyond the
+training range.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(splineKANr)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>knots <span class="ot">&lt;-</span> <span class="fu">kan_make_grid</span>(<span class="dv">1</span>, <span class="at">grid_size =</span> <span class="dv">5</span>, <span class="at">spline_order =</span> <span class="dv">3</span>)[<span class="dv">1</span>, ]</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="at">length.out =</span> <span class="dv">201</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>B <span class="ot">&lt;-</span> <span class="fu">kan_bspline_basis_r</span>(x, knots, <span class="dv">3</span>, <span class="at">right_closed =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">range</span>(<span class="fu">rowSums</span>(B))          <span class="co"># partition of unity on the domain</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co">#&gt; [1] 1 1</span></span></code></pre></div>
+</div>
+<div id="estimation" class="section level2">
+<h2>2. Estimation</h2>
+<p><code>kan_fit()</code> minimizes the mean squared error on min-max
+scaled inputs (mapped to the grid range) and a standardized response,
+with Adam (either backend) or LBFGS (torch backend). A validation split
+drives early stopping and the parameters of the best epoch are restored.
+Grids can be adapted to the data every <code>grid_update_every</code>
+epochs: the new knots are the blend <span class="math inline">\(\epsilon\, t^{\text{uniform}} + (1-\epsilon)\,
+t^{\text{quantile}}\)</span> of the sample (<span class="math inline">\(\epsilon\)</span> = <code>grid_eps</code>), layer
+by layer, and the spline coefficients are refitted to the old edge
+functions by least squares with relative ridge penalty
+<code>grid_ridge</code>. Optional regularization is pykan’s L1 + entropy
+penalty on edge activations plus coefficient penalties.</p>
+<p>Two backends compute the same model: R <code>torch</code> (autograd,
+CPU or GPU) and a base R implementation with analytic back-propagation
+(<code>backend = &quot;r&quot;</code>), which needs no libtorch and serves as the
+reference for the torch backend.</p>
+</div>
+<div id="validation" class="section level2">
+<h2>3. Validation</h2>
+<p>The checks distinguish <em>numerical equivalence</em> (same inputs
+and parameters give the same numbers) from <em>algorithmic
+equivalence</em> (the same procedure, with its own random
+initialization, gives results with the same distribution).</p>
+<p><strong>Numerical, components.</strong> The basis agrees with
+<code>splines::splineDesign()</code>, derivatives with
+<code>splineDesign(derivs = 1)</code> and central differences, parameter
+gradients with finite differences and with torch autograd:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>v <span class="ot">&lt;-</span> <span class="fu">kan_validate_basis</span>(<span class="at">grid_sizes =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">5</span>), <span class="at">spline_orders =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>,</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>                        <span class="at">backend =</span> <span class="st">&quot;r&quot;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>v[, <span class="fu">c</span>(<span class="st">&quot;grid_size&quot;</span>, <span class="st">&quot;spline_order&quot;</span>, <span class="st">&quot;max_err_splineDesign&quot;</span>, <span class="st">&quot;pass&quot;</span>)]</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt;   grid_size spline_order max_err_splineDesign pass</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; 1         3            1         1.110223e-16 TRUE</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; 2         3            2         2.220446e-16 TRUE</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt; 3         3            3         3.330669e-16 TRUE</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt; 4         5            1         1.110223e-16 TRUE</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt; 5         5            2         2.220446e-16 TRUE</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; 6         5            3         3.330669e-16 TRUE</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>g <span class="ot">&lt;-</span> <span class="fu">kan_validate_gradient</span>(<span class="at">widths =</span> <span class="fu">list</span>(<span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">1</span>)), <span class="at">extrapolate =</span> <span class="st">&quot;linear&quot;</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>                           <span class="at">backend =</span> <span class="st">&quot;r&quot;</span>)</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>g[, <span class="fu">c</span>(<span class="st">&quot;width&quot;</span>, <span class="st">&quot;comparison&quot;</span>, <span class="st">&quot;max_rel_err&quot;</span>, <span class="st">&quot;pass&quot;</span>)]</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt;   width                comparison  max_rel_err pass</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; 1 2-3-1 analytic_r vs finite_diff 5.660148e-07 TRUE</span></span></code></pre></div>
+<p><strong>Numerical, pykan.</strong> Fixtures generated with pykan
+0.2.8 (float64) are part of the test suite: KANLayer basis, forward
+pass, gradients and grid update (error &lt; 1e-10); MultKAN networks
+with up to three layers (forward and gradients &lt; 1e-10); and complete
+<code>MultKAN.fit(opt = &quot;Adam&quot;)</code> runs. Recorded results of the
+training comparison:</p>
+<table>
+<colgroup>
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Case</th>
+<th>Steps</th>
+<th>Grid updates</th>
+<th>Max. relative loss difference</th>
+<th>Max. parameter difference at the end</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>sin, [1, 1]</td>
+<td>300</td>
+<td>no</td>
+<td>6e-15</td>
+<td>2e-16</td>
+</tr>
+<tr class="even">
+<td>interaction, [2, 4, 1]</td>
+<td>300</td>
+<td>no</td>
+<td>1e-14</td>
+<td>3e-15</td>
+</tr>
+<tr class="odd">
+<td>sin, [1, 1]</td>
+<td>200</td>
+<td>10, <code>grid_ridge = 0</code></td>
+<td>5e-15</td>
+<td>4e-15</td>
+</tr>
+<tr class="even">
+<td>additive, [2, 5, 1]</td>
+<td>200</td>
+<td>10, <code>grid_ridge = 0</code></td>
+<td>1e-13</td>
+<td>2e-13</td>
+</tr>
+<tr class="odd">
+<td>sin, [1, 1]</td>
+<td>200</td>
+<td>10, default <code>grid_ridge = 1e-8</code></td>
+<td>6e-6</td>
+<td>2e-5</td>
+</tr>
+<tr class="even">
+<td>additive, [2, 5, 1]</td>
+<td>200</td>
+<td>10, default <code>grid_ridge = 1e-8</code></td>
+<td>3e-4</td>
+<td>2e-3</td>
+</tr>
+</tbody>
+</table>
+<p>The only source of difference in the last two rows is the ridge
+penalty of the refit; it is a deliberate stabilization, and
+<code>grid_ridge = 0</code> reproduces pykan’s plain least squares.</p>
+<p><strong>Algorithmic.</strong> For three problems with noise standard
+deviation 0.1, 10 seeds each, both packages ran 500 full-batch Adam
+steps with pykan’s grid schedule from their own initialization. Mean
+test RMSE (sd):</p>
+<table>
+<colgroup>
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Problem</th>
+<th>splineKANr</th>
+<th>pykan</th>
+<th>Paired difference (95% CI)</th>
+<th>Wilcoxon p</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>sin, [1, 1]</td>
+<td>0.1005 (0.0013)</td>
+<td>0.1004 (0.0012)</td>
+<td>0.0001 (-0.0000, 0.0002)</td>
+<td>0.43</td>
+</tr>
+<tr class="even">
+<td>interaction, [2, 4, 1]</td>
+<td>0.1087 (0.0022)</td>
+<td>0.1100 (0.0028)</td>
+<td>-0.0013 (-0.0028, 0.0002)</td>
+<td>0.06</td>
+</tr>
+<tr class="odd">
+<td>additive, [2, 5, 1]</td>
+<td>0.1189 (0.0223)</td>
+<td>0.1155 (0.0076)</td>
+<td>0.0035 (-0.0099, 0.0169)</td>
+<td>0.92</td>
+</tr>
+</tbody>
+</table>
+<p>Both packages reach the noise floor (0.1) on the one-dimensional
+problem and differ by less than 0.002 on average elsewhere; no
+difference is statistically significant. The larger spread of splineKANr
+on the additive problem comes from one seed (test RMSE 0.181) that
+converged to a poorer solution, a reminder that results of a single run
+depend on the initialization. The pykan default LBFGS optimizer is
+compared only when the torch backend is available.</p>
+</div>
+<div id="benchmark" class="section level2">
+<h2>4. Benchmark</h2>
+<p>Six synthetic problems, 10 seeds, <span class="math inline">\(n_{\text{train}} = 500\)</span>, <span class="math inline">\(n_{\text{test}} = 1000\)</span>; each tuned method
+chooses from a small grid on the same inner hold-out. RMSE against the
+noise-free function (mean over seeds):</p>
+<table style="width:100%;">
+<colgroup>
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Problem</th>
+<th>B-spline KAN</th>
+<th>Fourier KAN</th>
+<th>ANN</th>
+<th>GAM</th>
+<th>Random forest</th>
+<th>OLS</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>sin</td>
+<td>0.0052</td>
+<td>0.0209</td>
+<td>0.0043</td>
+<td><strong>0.0011</strong></td>
+<td>0.0072</td>
+<td>0.447</td>
+</tr>
+<tr class="even">
+<td>poly</td>
+<td><strong>0.0019</strong></td>
+<td>0.0070</td>
+<td>0.0036</td>
+<td>0.0034</td>
+<td>0.0037</td>
+<td>0.153</td>
+</tr>
+<tr class="odd">
+<td>noisy_sin (<span class="math inline">\(\sigma = 0.2\)</span>)</td>
+<td>0.0293</td>
+<td>0.0696</td>
+<td><strong>0.0234</strong></td>
+<td>0.0255</td>
+<td>0.1203</td>
+<td>0.447</td>
+</tr>
+<tr class="even">
+<td>interaction (<span class="math inline">\(x_1 x_2\)</span>)</td>
+<td><strong>0.0058</strong></td>
+<td>0.0253</td>
+<td>0.0070</td>
+<td>0.3343</td>
+<td>0.1094</td>
+<td>0.334</td>
+</tr>
+<tr class="odd">
+<td>additive</td>
+<td>0.0109</td>
+<td>0.0463</td>
+<td>0.0143</td>
+<td><strong>0.0070</strong></td>
+<td>0.1085</td>
+<td>0.625</td>
+</tr>
+<tr class="even">
+<td>Friedman 1 (<span class="math inline">\(p = 10\)</span>)</td>
+<td>1.207</td>
+<td>1.569</td>
+<td><strong>0.570</strong></td>
+<td>1.394</td>
+<td>2.044</td>
+<td>2.441</td>
+</tr>
+</tbody>
+</table>
+<p>The B-spline KAN is the most accurate method on the polynomial and
+the interaction problems and close to the best on the smooth univariate
+and additive ones, where a GAM, which matches the true structure
+exactly, is better. It is consistently and clearly more accurate than
+the Fourier KAN comparator under the same protocol. On Friedman’s
+ten-input problem the ANN is about twice as accurate and the KAN results
+vary strongly between seeds (sd 0.35): with one hidden layer of width 3
+chosen from the small tuning grid, the KAN is not flexible enough for
+this target. The KAN is also the slowest method here (base R backend,
+3-18 s per fit).</p>
+</div>
+<div id="application-predicting-satisfaction-and-loyalty-from-pls-sem-scores" class="section level2">
+<h2>5. Application: predicting satisfaction and loyalty from PLS-SEM
+scores</h2>
+<p>A common workflow in marketing and management research estimates a
+measurement and structural model by PLS-SEM <span class="citation">(Hair
+et al. 2022)</span> and then asks whether the linear structural
+equations miss non-linear effects. Below, a simulated customer survey
+(two exogenous constructs with five 10-point items each and a
+satisfaction construct with three items) is analyzed with the base R
+PLS-PM routine shipped in <code>inst/applications</code>, and an
+additive KAN is fitted to the latent scores.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>src <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;applications&quot;</span>, <span class="st">&quot;pls_pm.R&quot;</span>, <span class="at">package =</span> <span class="st">&quot;splineKANr&quot;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">source</span>(src)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">600</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>quality <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>image <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> quality <span class="sc">+</span> <span class="fu">sqrt</span>(<span class="fl">0.75</span>) <span class="sc">*</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>sat <span class="ot">&lt;-</span> <span class="fl">0.4</span> <span class="sc">*</span> quality <span class="sc">+</span> <span class="fl">0.9</span> <span class="sc">*</span> <span class="fu">pmax</span>(image, <span class="dv">0</span>) <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fl">0.4</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>items <span class="ot">&lt;-</span> <span class="cf">function</span>(lv, k, prefix) {</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  z <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="fu">seq_len</span>(k), <span class="cf">function</span>(i) <span class="fl">0.8</span> <span class="sc">*</span> <span class="fu">scale</span>(lv)[, <span class="dv">1</span>] <span class="sc">+</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>                <span class="fl">0.6</span> <span class="sc">*</span> <span class="fu">rnorm</span>(<span class="fu">length</span>(lv)))</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">pmax</span>(<span class="fu">pmin</span>(<span class="fu">round</span>(<span class="fl">5.5</span> <span class="sc">+</span> <span class="fl">1.6</span> <span class="sc">*</span> z), <span class="dv">10</span>), <span class="dv">1</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>  <span class="fu">colnames</span>(out) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(prefix, <span class="fu">seq_len</span>(k))</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>  out</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>}</span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>survey <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="fu">items</span>(quality, <span class="dv">5</span>, <span class="st">&quot;q&quot;</span>), <span class="fu">items</span>(image, <span class="dv">5</span>, <span class="st">&quot;im&quot;</span>),</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>                     <span class="fu">items</span>(sat, <span class="dv">3</span>, <span class="st">&quot;s&quot;</span>))</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>blocks <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">Quality =</span> <span class="fu">paste0</span>(<span class="st">&quot;q&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>), <span class="at">Image =</span> <span class="fu">paste0</span>(<span class="st">&quot;im&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>),</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>               <span class="at">Satisfaction =</span> <span class="fu">paste0</span>(<span class="st">&quot;s&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>))</span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>paths <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="st">&quot;Quality&quot;</span>, <span class="st">&quot;Satisfaction&quot;</span>), <span class="fu">c</span>(<span class="st">&quot;Image&quot;</span>, <span class="st">&quot;Satisfaction&quot;</span>))</span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>pls <span class="ot">&lt;-</span> <span class="fu">pls_pm</span>(survey, blocks, paths)</span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="fu">pls_path_table</span>(pls, <span class="st">&quot;pls&quot;</span>)</span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt;      from           to      beta        r2</span></span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt; 1 Quality Satisfaction 0.3991555 0.5207929</span></span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a><span class="co">#&gt; 2   Image Satisfaction 0.4554731 0.5207929</span></span>
+<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">rbind</span>(<span class="at">CR =</span> pls<span class="sc">$</span>cr, <span class="at">AVE =</span> pls<span class="sc">$</span>ave), <span class="dv">3</span>)</span>
+<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a><span class="co">#&gt;     Quality Image Satisfaction</span></span>
+<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a><span class="co">#&gt; CR    0.921 0.919        0.893</span></span>
+<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a><span class="co">#&gt; AVE   0.700 0.695        0.735</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>sc <span class="ot">&lt;-</span> pls<span class="sc">$</span>scores</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>train <span class="ot">&lt;-</span> <span class="fu">seq_len</span>(<span class="dv">400</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>kfit <span class="ot">&lt;-</span> <span class="fu">kan_fit</span>(sc[train, <span class="fu">c</span>(<span class="st">&quot;Quality&quot;</span>, <span class="st">&quot;Image&quot;</span>)], sc[train, <span class="st">&quot;Satisfaction&quot;</span>],</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>                <span class="at">hidden =</span> <span class="fu">integer</span>(), <span class="at">grid_size =</span> <span class="dv">5</span>, <span class="at">epochs =</span> <span class="dv">300</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>                <span class="at">backend =</span> <span class="st">&quot;r&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>lfit <span class="ot">&lt;-</span> <span class="fu">lm</span>(Satisfaction <span class="sc">~</span> Quality <span class="sc">+</span> Image, <span class="at">data =</span> <span class="fu">as.data.frame</span>(sc[train, ]))</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>test <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(sc[<span class="sc">-</span>train, ])</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="fu">rbind</span>(</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">kan =</span> <span class="fu">kan_metrics</span>(test<span class="sc">$</span>Satisfaction,</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>                    <span class="fu">predict</span>(kfit, test[, <span class="fu">c</span>(<span class="st">&quot;Quality&quot;</span>, <span class="st">&quot;Image&quot;</span>)],</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>                            <span class="at">backend =</span> <span class="st">&quot;r&quot;</span>)),</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="at">ols =</span> <span class="fu">kan_metrics</span>(test<span class="sc">$</span>Satisfaction, <span class="fu">predict</span>(lfit, test))</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;          rmse       mae        r2   n</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt; kan 0.6819320 0.5537144 0.5730240 200</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; ols 0.7045009 0.5788747 0.5442943 200</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>op <span class="ot">&lt;-</span> <span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="cf">for</span> (v <span class="cf">in</span> <span class="fu">c</span>(<span class="st">&quot;Quality&quot;</span>, <span class="st">&quot;Image&quot;</span>)) {</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="fu">plot</span>(<span class="fu">kan_partial_dependence</span>(kfit, sc[train, <span class="fu">c</span>(<span class="st">&quot;Quality&quot;</span>, <span class="st">&quot;Image&quot;</span>)], v),</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>       <span class="at">main =</span> v, <span class="at">ylab =</span> <span class="st">&quot;PD of Satisfaction&quot;</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>}</span></code></pre></div>
+<p><img src="data:image/png;base64,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" /><!-- --></p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">par</span>(op)</span></code></pre></div>
+<p>In this simulation <code>Image</code> raises satisfaction only when
+it is above average (a kinked effect), which the linear structural model
+can represent only by a single slope. The partial dependence of the KAN
+recovers the kink (flat below the mean, rising above it) and the
+out-of-sample error is somewhat lower than that of OLS. The curve for
+<code>Quality</code>, whose true effect is linear, bends slightly in the
+tails where there are few observations; such wiggles should not be
+over-interpreted. The gain is not automatic: with half the sample size
+and a milder non-linearity the same comparison favored OLS, because the
+extra flexibility costs variance. Whether a KAN improves on the
+structural equations is an empirical question to be settled out of
+sample, as below. For honest predictive assessment the PLS weights must
+be estimated on the training rows only;
+<code>inst/applications/run_application.R</code> does this inside every
+fold of a repeated cross-validation. Recorded results on three public
+customer data sets: the ECSI data <code>seminr::mobi</code> (n = 250)
+and <code>plspm::satisfaction</code> (n = 250), and the corporate
+reputation data <code>seminr::corp_rep_data</code> (n = 344; formative
+drivers, Hair et al. 2022). 10 x 5-fold cross-validation; RMSE of the
+standardized target score, mean over repeats; “PLS-SEM” is OLS on the
+target’s predecessors in the structural model, all other methods use
+every antecedent construct:</p>
+<table style="width:100%;">
+<colgroup>
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Data, target</th>
+<th>PLS-SEM</th>
+<th>B-spline KAN</th>
+<th>GAM</th>
+<th>ANN</th>
+<th>Random forest</th>
+<th>Fourier KAN</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>mobi, satisfaction</td>
+<td><strong>0.584</strong></td>
+<td>0.616</td>
+<td>0.592</td>
+<td>0.598</td>
+<td>0.623</td>
+<td>0.657</td>
+</tr>
+<tr class="even">
+<td>mobi, loyalty</td>
+<td><strong>0.753</strong></td>
+<td>0.776</td>
+<td>0.770</td>
+<td>0.792</td>
+<td>0.753</td>
+<td>0.832</td>
+</tr>
+<tr class="odd">
+<td>satisfaction, satisfaction</td>
+<td><strong>0.567</strong></td>
+<td>0.601</td>
+<td>0.599</td>
+<td>0.590</td>
+<td>0.587</td>
+<td>0.630</td>
+</tr>
+<tr class="even">
+<td>satisfaction, loyalty</td>
+<td>0.723</td>
+<td>0.722</td>
+<td><strong>0.710</strong></td>
+<td>0.719</td>
+<td>0.718</td>
+<td>0.767</td>
+</tr>
+<tr class="odd">
+<td>corp_rep, satisfaction</td>
+<td><strong>0.852</strong></td>
+<td>0.864</td>
+<td>0.860</td>
+<td>0.869</td>
+<td>0.899</td>
+<td>0.898</td>
+</tr>
+<tr class="even">
+<td>corp_rep, loyalty</td>
+<td><strong>0.667</strong></td>
+<td>0.682</td>
+<td>0.679</td>
+<td>0.678</td>
+<td>0.714</td>
+<td>0.720</td>
+</tr>
+</tbody>
+</table>
+<p>In these data the linear structural model predicts as well as or
+better than every flexible method, and the B-spline KAN performs like a
+GAM or an ANN. With 250-350 respondents and latent scores that are
+linear combinations of Likert items, there is no detectable
+non-linearity that pays for the extra parameters. Here the KAN is useful
+as a diagnostic: its additive partial-dependence curves give a direct
+visual check of the linearity assumption of the structural equations,
+and its cross-validated error shows that relaxing that assumption does
+not improve prediction. The same pipeline is meant for data where
+non-linear effects (thresholds, saturation) are expected, or for larger
+samples.</p>
+</div>
+<div id="references" class="section level2 unnumbered">
+<h2 class="unnumbered">References</h2>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-hair2022primer" class="csl-entry">
+Hair, Joseph F., G. Tomas M. Hult, Christian M. Ringle, and Marko
+Sarstedt. 2022. <em>A Primer on Partial Least Squares Structural
+Equation Modeling (<span>PLS-SEM</span>)</em>. 3rd ed. Thousand Oaks,
+CA: Sage.
+</div>
+<div id="ref-liu2024kan" class="csl-entry">
+Liu, Ziming, Yixuan Wang, Sachin Vaidya, Fabian Ruehle, James Halverson,
+Marin Soljačić, Thomas Y. Hou, and Max Tegmark. 2024.
+<span>“<span>KAN</span>: <span>K</span>olmogorov-<span>A</span>rnold
+Networks.”</span> <em>arXiv Preprint arXiv:2404.19756</em>. <a href="https://doi.org/10.48550/arXiv.2404.19756">https://doi.org/10.48550/arXiv.2404.19756</a>.
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
